@@ -1,15 +1,34 @@
+using Microsoft.EntityFrameworkCore;
+using TaskManager.Api.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
+// Сервисы
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseSqlite(builder.Configuration.GetConnectionString("Sqlite")));
+
+builder.Services.AddCors(opt =>
+{
+    opt.AddDefaultPolicy(p => p
+        .WithOrigins("http://localhost:4200") // фронт на Angular
+        .AllowAnyHeader()
+        .AllowAnyMethod());
+});
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// создаём базу и сиды
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
+    await Seed.ApplyAsync(db);
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -18,7 +37,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+app.UseCors();
 
 app.MapControllers();
 
